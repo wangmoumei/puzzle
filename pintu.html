@@ -1,0 +1,249 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
+<title>拼图</title>
+<style>
+*{padding:0;margin:0;}li{list-style:none}
+#body{max-width:400px;margin:0 auto}
+#puzzle{}#puzzle p{ cursor:pointer}
+@-webkit-keyframes ajax-loader-rotate {
+  0% { -webkit-transform: rotate(0deg); }
+  100% { -webkit-transform: rotate(360deg); }
+}
+@-moz-keyframes ajax-loader-rotate {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+@keyframes ajax-loader-rotate {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+.ajax-loader {
+	margin:0 auto;
+	opacity: .8;
+	display: block;
+	border-radius: 50%;
+	font-size: 29px;
+	width: .25em;
+	height: .25em;
+	box-shadow:
+	  0 -.4em       0 0 rgba(0,0,0,1),
+	  -.28em -.28em 0 0 rgba(0,0,0,.75),
+	  -.4em 0       0 0 rgba(0,0,0,.50),
+	  -.28em .28em  0 0 rgba(0,0,0,.25);
+	-webkit-animation: .85s ajax-loader-rotate steps(8) infinite;
+	-moz-animation: .85s ajax-loader-rotate steps(8) infinite;
+	animation: .85s ajax-loader-rotate steps(8) infinite;
+}
+#gamenotice{
+	position:absolute;
+	bottom:20px;
+	left::0;
+	width:100%;
+	text-align:center;
+	color:#fff;
+	animation:4s gamenotice infinite;
+	-webkit-animation:4s gamenotice infinite;
+}
+@-webkit-keyframes gamenotice {
+  0% { color: rgba(255,255,255,1.00) }
+  50% { color: rgba(255,255,255,.5) }
+  100% { color: rgba(255,255,255,1.00) }
+}
+@-moz-keyframes gamenotice {
+  0% { color: rgba(255,255,255,1.00) }
+  50% { color: rgba(255,255,255,.5) }
+  100% { color: rgba(255,255,255,1.00) }
+}
+@keyframes gamenotice {
+  0% { color: rgba(255,255,255,1.00) }
+  50% { color: rgba(255,255,255,.5) }
+  100% { color: rgba(255,255,255,1.00) }
+}
+</style>
+</head>
+
+<body>
+<div id="body">
+    <div id="puzzlebox" style="position:relative;background-color:#D1D1D1">
+    <div class="gamenotice" id="gamenotice">轻触图片开始游戏</div>
+    <div id="puzzle"><div class="ajax-loader" style="margin-top:40px;margin-bottom:40px;"></div></div>
+    </div>
+    <div style="text-align:center">
+    	计时:<span id="puzzle-timer">00:00</span> 完成拼图:<span id="puzzle-steps">0</span>
+        <br/>
+        <!--x:<span id="xpos"></span> y:<span id="ypos"></span>-->
+    </div>
+    
+</div>
+
+<script>
+window.onload = function(){
+	puzzle.init({
+		width:250	//拼图宽度 默认取父元素宽度	
+		,col:4	//拼图每行的格子数 默认5
+		,row:5	//行数 默认5
+		,img:"25.jpg"//拼图图片路径 默认"8.jpg" 图片路径找不到时会报错
+		,bgcolor:'#eee' //拼版背景颜色，格子之间缝隙的颜色 默认白色'#fff'
+		,type:'timing'	//游戏模式 timeout 倒计时模式 默认timing计时模式
+		,time:10	//倒计时模式下的时间限制秒数
+		,success:function(time,step){alert("成功！"+time+"秒 移动了"+step+"次")} //游戏成功执行函数 自带用时和步数参数
+		,timeout:function(time,step){alert("超时！"+time+"秒 移动了"+step+"次")} //游戏超时执行函数 自带用时和步数参数
+	});
+}
+
+
+var puzzle = {count:0};
+puzzle.init = function(opt){
+	var puzbox = this;
+	this.count++;
+	this.box = document.getElementById("puzzle");
+	if(this.box == null) {alert("缺少div id=puzzle");return 0;}
+	this.box.style.position = "relative";
+	this.box.style.margin = "0 auto";
+	this.box.style.backgroundSize = "100%";
+	this.bgcolor = opt.bgcolor || "#fff";//拼图板背景颜色
+	this.bgimg = opt.bgimg || null;//拼图板背景图片
+	this.width = opt.width || this.box.clientWidth || 300;//整幅拼图宽度
+	this.col = opt.col || 5;	//列
+	this.row = opt.row || 5;	//行
+	this.height = this.width / this.col * this.row;
+	this.box.style.height = this.height-1  + "px";
+	this.box.style.width = this.width -1 + "px";
+	this.size = this.width / this.col;
+	this.board = {};
+	this.board.e = document.getElementById('puzzlebox');
+	if(this.board.e == null) {alert("缺少div id=puzzlebox");return 0;}
+	this.board.top = this.board.e.offsetTop;
+	this.board.left = this.board.e.offsetLeft;
+	this.board.width = this.board.e.clientWidth;
+	this.board.e.style.overflow = "hidden";
+	this.board.e.style.padding = this.size + "px 0";
+	this.step = 0;//步数 初始化
+	this.useTime = 0;//计时器 初始化
+	this.img = opt.img || "8.jpg";//拼图图片
+	this.time = opt.time || 60;//倒计时模式下的时间限制秒数
+	this.type = opt.type ||"timing"; //游戏模式：timing 计时模式;timeout 倒计时模式;
+	clearInterval(this.timer);
+	this.success = opt.success || function(time,step){alert("拼图完成，用时"+time+"秒，一共移动了"+step+"次")};//游戏成功执行函数
+	this.timeout = opt.timeout || function(time,step){alert("时间到啦，用时"+time+"秒，一共移动了"+step+"次")};//游戏倒计时结束执行函数
+	this.zindex = 0;
+	var img = new Image();
+	img.src = this.img;
+	img.onerror = function(){alert("图片未找到")}
+	img.onload = function(){
+		document.getElementById('gamenotice').style.display="block";
+		puzbox.box.style.backgroundColor = puzbox.bgcolor; //+;
+		puzbox.box.style.backgroundImage = "url("+puzbox.img+")";
+		puzbox.box.innerHTML = '<div id="gamestart" style="position:absolute;width:100%;height:'+puzbox.height+'px"></div>';
+		document.getElementById('gamestart').onclick = function(){
+			document.getElementById('gamenotice').style.display="none";
+			puzbox.settimer();
+			puzbox.random();
+			puzbox.board.height = puzbox.board.e.clientHeight;
+			if(puzbox.count == 1)
+			puzbox.touch();
+		}
+	};
+}
+puzzle.random = function(){
+	var puzbox = this;
+		var html = "";
+		var size = puzbox.size;
+		var tRandom = function(){return parseInt(Math.random() * (puzbox.height - size)+ size)},lRandom = function(top){
+			var area = (puzbox.board.width - puzbox.width) /2;
+			if(top>(puzbox.height-puzbox.size/2))
+			return parseInt(Math.random()*(puzbox.board.width - puzbox.size) - area);
+			else
+			return (Math.random() > 0.5)?parseInt((Math.random()-1)*area):parseInt(Math.random()*area + puzbox.width - puzbox.size);
+		}
+		for(var i=0;i<puzbox.col * puzbox.row;i++){
+			var bgleft = i%puzbox.col * size,bgtop = parseInt(i/puzbox.col) * size,
+			top = tRandom(),left = lRandom(top);
+			html+="<p class="+i+" style='position:absolute;z-index:"+(i+2)+";top:"+top+"px;left:"+left+"px;width:"+(size-1)+"px;height:"+(size-1)+"px;background-image:url("+puzbox.img+");background-size:"+puzbox.width+"px;background-position:-"+bgleft+"px -"+bgtop+"px'></p>";	
+		}
+		html +="<ul>";
+		for(var i=0;i<puzbox.col * puzbox.row;i++){
+			var left = i%puzbox.col * size,top = parseInt(i/puzbox.col) * size;
+			html+="<li id="+i+" style='position:absolute;top:"+top+"px;left:"+left+"px;width:"+(size-1)+"px;height:"+(size-1)+"px;background-color:"+puzbox.bgcolor+";'></li>";	
+		}
+		html +="</ul>";
+		puzbox.box.innerHTML = html;
+		puzbox.plst = document.getElementById("puzzle").getElementsByTagName("P");
+		//puzbox.blank = puzbox.col * puzbox.row -1;
+
+	
+}
+puzzle.settimer = function(){
+	var puzbox = this;
+	if(puzbox.type == "timing")
+			puzbox.timer=setInterval(function(){
+				puzbox.useTime++;/* 累加时间并格式化显示 */
+				document.getElementById("puzzle-timer").innerHTML=('0'+parseInt(puzbox.useTime/60)).slice(-2)+':'+('0'+puzbox.useTime%60).slice(-2);
+			},1000);
+		else {
+			document.getElementById("puzzle-timer").innerHTML=('0'+parseInt(puzbox.time/60)).slice(-2)+':'+('0'+puzbox.time%60).slice(-2);
+			puzbox.timer=setInterval(function(){
+				puzbox.useTime++;/* 累加时间并格式化显示 */puzbox.time--;
+				document.getElementById("puzzle-timer").innerHTML=('0'+parseInt(puzbox.time/60)).slice(-2)+':'+('0'+puzbox.time%60).slice(-2);
+				if(puzbox.time ==0){
+					puzbox.timeout(puzbox.useTime,puzbox.step);
+					for(var i=0;i<puzbox.plst.length;i++)puzbox.plst[i].style.display="none";	
+					clearInterval(puzbox.timer);
+				}
+		},1000);
+	}
+}
+puzzle.touch = function(){
+	var xx=0,yy=0,num=0,chosen = false;
+	var puzbox = this;
+	for(var i=0;i<puzbox.plst.length;i++){
+		puzbox.plst[i].addEventListener("mousedown", movestart);
+		puzbox.plst[i].addEventListener("mouseup", moveend);
+		puzbox.plst[i].addEventListener("mousemove", moving);
+		puzbox.plst[i].addEventListener("touchstart", movestart);
+		puzbox.plst[i].addEventListener("touchend", moveend);
+		puzbox.plst[i].addEventListener("touchmove", moving);
+	}
+	function movestart(e){
+		chosen = true;
+		this.style.zIndex = puzbox.col * puzbox.row + 2 + puzbox.zindex;
+		puzbox.zindex++;
+		num = this.className;
+		if(e.changedTouches){e=e.changedTouches[e.changedTouches.length-1];}
+		xx = (e.clientX  || e.pageX ) - this.offsetLeft;yy = (e.clientY  || e.pageY ) - this.offsetTop;
+	}
+	function moveend(e){
+		chosen = false;
+		for(var i=0;i<puzbox.plst.length;i++){if(i!=num)puzbox.plst[i].style.opacity = 1;}
+		var pos = document.getElementById(num);
+		if(Math.abs(this.offsetLeft -pos.offsetLeft) < 20 && Math.abs(this.offsetTop-pos.offsetTop) < 20){
+			//this.style.left = pos.offsetLeft  + 'px';this.style.top = pos.offsetTop  + 'px';
+			this.style.display = "none";
+			pos.style.background="none";
+			puzbox.step++;document.getElementById('puzzle-steps').innerHTML = puzbox.step/(puzbox.col*puzbox.row) *100 +"%";
+			if(puzbox.step >= puzbox.col * puzbox.row)
+			puzbox.success(puzbox.useTime,puzbox.zindex);
+		}
+		
+	}
+	function moving(e){
+		if(chosen){
+			for(var i=0;i<puzbox.plst.length;i++){if(i!=num)puzbox.plst[i].style.opacity = 0.3;}
+			document.addEventListener('touchmove', function (e) { e.preventDefault(); }, false);
+			if(e.changedTouches){e=e.changedTouches[e.changedTouches.length-1];}
+			var x = (e.clientX  || e.pageX ),y = (e.clientY  || e.pageY );
+			//document.getElementById('xpos').innerHTML=x;document.getElementById('ypos').innerHTML = y;
+			if(x - puzbox.board.left< puzbox.board.width &&x-puzbox.board.left >0 )
+				this.style.left  = x - xx + "px";
+			if(y + puzbox.size  - puzbox.board.top < puzbox.board.height && y +yy - puzbox.board.top > 0)
+				this.style.top = y - yy + 'px';
+		}
+	}
+}
+//alert(document.getElementById('puzzlebox').offsetLeft)
+</script>
+</body>
+</html>
